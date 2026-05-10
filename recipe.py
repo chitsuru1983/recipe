@@ -59,7 +59,7 @@ def main():
     with col_logo:
         if os.path.exists(LOGO_PATH): st.image(LOGO_PATH, use_container_width=True)
     with col_title: 
-        st.title("過去レシピ・アーカイブ検索")
+        st.title("やさい料理研究家　大畑ちつるのレシピ集")
 
     # --- クイックリンク（上部配置） ---
     link_col1, link_col2, link_col3 = st.columns(3)
