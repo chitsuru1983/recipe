@@ -1,23 +1,21 @@
 import streamlit as st
 import pandas as pd
 
-# ページ設定は一番上に配置
+# ページ設定
 st.set_page_config(page_title="Recipe Library", layout="wide")
 
-# --- 2. 認証機能 ---
+# --- 認証機能 ---
 def check_password():
-    """パスワードが正しいか確認し、成否を返す"""
     if st.session_state.get("password_correct", False):
         return True
 
-    # 認証用UI
     st.title("🔐 認証が必要です")
     password = st.text_input("パスワードを入力してください", type="password")
     
     if st.button("ログイン"):
         if password == "20250505": 
             st.session_state["password_correct"] = True
-            st.rerun()  # 状態を保存して再起動
+            st.rerun()
         else:
             st.error("パスワードが違います")
     return False
@@ -39,7 +37,7 @@ def main():
     # --- 検索・フィルタエリア ---
     with st.sidebar:
         st.header("検索フィルタ")
-        search_query = st.text_input("キーワード入力 (タイトル・材料など)", "")
+        search_query = st.text_input("キーワード入力", "")
         selected_title = st.selectbox("タイトルから直接選ぶ", ["指定なし"] + df['title'].tolist())
 
     # データの絞り込み
@@ -53,7 +51,6 @@ def main():
             filtered_df['background'].str.contains(search_query, na=False)
         ]
 
-    # --- 表示エリア ---
     st.write(f"該当件数: {len(filtered_df)} 件")
 
     if len(filtered_df) == 0:
@@ -68,10 +65,24 @@ def main():
                     
                     st.subheader("💡 背景")
                     st.write(row['background'])
+                    
+                    # --- 材料のリスト化 ---
                     st.subheader("🛒 材料")
-                    st.info(row['ingredients'])
+                    if pd.notna(row['ingredients']):
+                        # 「 / 」で分割して箇条書きにする
+                        ing_list = row['ingredients'].split('/')
+                        for item in ing_list:
+                            if item.strip():
+                                st.markdown(f"- {item.strip()}")
+                    
+                    # --- 作り方のリスト化 ---
                     st.subheader("👨‍🍳 作り方")
-                    st.write(row['instructions'])
+                    if pd.notna(row['instructions']):
+                        # 「。」で分割してステップ番号をつける
+                        steps = [s.strip() for s in row['instructions'].split('。') if s.strip()]
+                        for j, step in enumerate(steps, 1):
+                            st.write(f"**{j}.** {step}。")
+                    
                     st.subheader("✨ コツ・ポイント")
                     st.warning(row['tips'])
                     
@@ -79,6 +90,5 @@ def main():
                         st.markdown(f"[🔗 元の記事を見る]({row['permalink']})")
 
 if __name__ == "__main__":
-    # 認証に成功した場合のみ main() を実行
     if check_password():
         main()
