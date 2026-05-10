@@ -182,5 +182,4 @@ def main():
                     if pd.notna(row['tips']): st.warning(row['tips'])
                     if pd.notna(row['permalink']): st.markdown(f"[🔗 元の記事を見る]({row['permalink']})")
 
-if __name__ == "__main__":
-    if check_password(): main()
+if __name__ == "__main__"
