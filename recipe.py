@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import re  # 正規表現ライブラリを一番上でインポート
 
 # ページ設定
 st.set_page_config(page_title="Recipe Library", layout="wide")
@@ -66,17 +67,14 @@ def main():
                     st.subheader("💡 背景")
                     st.write(row['background'])
                     
-# --- 材料のリスト化部分を以下に差し替え ---
+                    # --- 材料のリスト化 (1/2などの分数を守る設定) ---
                     st.subheader("🛒 材料")
                     if pd.notna(row['ingredients']):
-    # 「 / 」（前後にスペースがあるスラッシュ）で分割するように変更
-    # これにより 1/2 などの分数が分割されるのを防ぎます
-                    import re
-                    ing_list = re.split(r' / | /|/ ', row['ingredients'])
-    
-                    for item in ing_list:
-                    if item.strip():
-                    st.markdown(f"- {item.strip()}")
+                        # 前後にスペースがある「 / 」で分割（分数のスラッシュを守る）
+                        ing_list = re.split(r'\s*/\s*', row['ingredients'])
+                        for item in ing_list:
+                            if item.strip():
+                                st.markdown(f"- {item.strip()}")
                     
                     # --- 作り方のリスト化 ---
                     st.subheader("👨‍🍳 作り方")
