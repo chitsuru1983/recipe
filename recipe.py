@@ -50,12 +50,10 @@ def main():
 
     # --- サイドバー ---
     with st.sidebar:
-        # ニュースの見出し表示
-        st.subheader("📢 最新ニュース")
+        st.subheader("🔗 クイックリンク")
         st.markdown("""
-        - [【最新】季節のやさい料理ニュース](https://www.osakafoodstyle.com/news/)
-        - [eo光TV「ゲツ→キン」出演情報](https://www.osakafoodstyle.com/news/)
-        - [料理教室・イベントのお知らせ](https://www.osakafoodstyle.com/news/)
+        - 📺 [動画レッスンを見る](https://osakafoodstyle.stores.jp/)
+        - 📢 [最新ニュース・お知らせ](https://www.osakafoodstyle.com/news/)
         """)
         st.divider()
         
@@ -100,6 +98,7 @@ def main():
                         save_favorites(st.session_state.favorites); st.rerun()
 
                 with st.expander(expander_label, expanded=(len(filtered_df) == 1)):
+                    # 画像表示
                     if pd.notna(row['image_url']):
                         for url in str(row['image_url']).split('|'):
                             if url.strip(): st.image(url.strip(), use_container_width=True)
@@ -120,7 +119,7 @@ def main():
                             if match:
                                 ingredients_map[match.group(1)] = match.group(2)
 
-                    # --- 作り方（ツールチップ実装） ---
+                    # --- 作り方（スッキリ版） ---
                     st.subheader("👨‍🍳 作り方")
                     if pd.notna(row['instructions']):
                         raw_steps = re.split(r'。|\n', str(row['instructions']))
@@ -128,37 +127,16 @@ def main():
                         
                         step_num = 1
                         for step in steps:
-                            # 記号（a, bなど）をツールチップ形式に置換
-                            # 💡 Streamlitのhelp引数を使って、マウスホバー時に表示させる
-                            for key, content in ingredients_map.items():
-                                # 後の処理のためにプレースホルダを置く
-                                step = re.sub(rf'(?<![a-zA-Z]){key}(?![a-zA-Z])', f"__FAV_KEY_{key}__", step)
-
+                            # 文字置換ではなく、そのまま表示
                             if step.startswith("※"):
                                 st.caption(step)
                             else:
-                                # ツールチップ（中身が見えるボタンのような見た目）を含む1行を作成
-                                if "__FAV_KEY_" in step:
-                                    # step内に合わせ調味料が含まれる場合、分割して表示
-                                    parts = re.split(r'(__FAV_KEY_[a-z]__)', step)
-                                    display_elements = [f"**{step_num}.** "]
-                                    for p in parts:
-                                        key_match = re.match(r'__FAV_KEY_([a-z])__', p)
-                                        if key_match:
-                                            k = key_match.group(1)
-                                            # st.buttonなどの代わりに「？」マークの付いたツールチップを配置
-                                            display_elements.append(f"🔒**{k}**(？)")
-                                        else:
-                                            display_elements.append(p)
-                                    
-                                    # まとめて1行として表示しつつ、横に詳細ボタンを置く
-                                    st.write("".join(display_elements))
-                                    # 詳細を「？」アイコンで確認できるようにする
-                                    for k in ingredients_map:
-                                        if f"__FAV_KEY_{k}__" in step:
-                                            st.info(f"💡 {k}の中身: {ingredients_map[k]}")
-                                else:
-                                    st.write(f"**{step_num}.** {step}。")
+                                st.write(f"**{step_num}.** {step}。")
+                                # そのステップに a や b が含まれていれば、折りたたみで中身を表示
+                                for key in ingredients_map:
+                                    if re.search(rf'(?<![a-zA-Z]){key}(?![a-zA-Z])', step):
+                                        with st.expander(f"🔍 {key}の中身を確認"):
+                                            st.write(ingredients_map[key])
                                 step_num += 1
                     
                     st.subheader("✨ コツ・ポイント")
