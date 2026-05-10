@@ -66,17 +66,17 @@ def main():
                     st.subheader("💡 背景")
                     st.write(row['background'])
                     
-                   # --- 材料のリスト化部分を以下に差し替え ---
-st.subheader("🛒 材料")
-if pd.notna(row['ingredients']):
+# --- 材料のリスト化部分を以下に差し替え ---
+                    st.subheader("🛒 材料")
+                    if pd.notna(row['ingredients']):
     # 「 / 」（前後にスペースがあるスラッシュ）で分割するように変更
     # これにより 1/2 などの分数が分割されるのを防ぎます
-    import re
-    ing_list = re.split(r' / | /|/ ', row['ingredients'])
+                    import re
+                    ing_list = re.split(r' / | /|/ ', row['ingredients'])
     
-    for item in ing_list:
-        if item.strip():
-            st.markdown(f"- {item.strip()}")
+                    for item in ing_list:
+                    if item.strip():
+                    st.markdown(f"- {item.strip()}")
                     
                     # --- 作り方のリスト化 ---
                     st.subheader("👨‍🍳 作り方")
