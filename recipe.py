@@ -1,9 +1,21 @@
 import streamlit as st
 import pandas as pd
 import re
+import os
 
 # ページ設定
 st.set_page_config(page_title="Recipe Library", layout="wide")
+
+# --- お気に入りデータの管理 ---
+FAV_FILE = "favorites.csv"
+
+def load_favorites():
+    if os.path.exists(FAV_FILE):
+        return pd.read_csv(FAV_FILE)['title'].tolist()
+    return []
+
+def save_favorites(fav_list):
+    pd.DataFrame(fav_list, columns=['title']).to_csv(FAV_FILE, index=False)
 
 # --- 認証機能 ---
 def check_password():
@@ -25,9 +37,7 @@ def load_data():
     if not pd.io.common.file_exists("master_recipe_data.csv"):
         st.error("master_recipe_data.csv が見つかりません。")
         return None
-    # CSV読み込み
-    df = pd.read_csv("master_recipe_data.csv")
-    return df
+    return pd.read_csv("master_recipe_data.csv")
 
 def main():
     st.title("📚 過去レシピ・アーカイブ検索")
@@ -36,14 +46,26 @@ def main():
     if df is None:
         return
 
+    # お気に入りリストの読み込み
+    if "favorites" not in st.session_state:
+        st.session_state.favorites = load_favorites()
+
     # --- 検索・フィルタエリア ---
     with st.sidebar:
         st.header("検索フィルタ")
+        # お気に入り絞り込みスイッチ
+        show_only_favs = st.checkbox("⭐ お気に入りだけ表示")
+        
         search_query = st.text_input("キーワード入力", "")
         selected_title = st.selectbox("タイトルから直接選ぶ", ["指定なし"] + df['title'].tolist())
 
     # データの絞り込み
     filtered_df = df.copy()
+    
+    # お気に入り絞り込み
+    if show_only_favs:
+        filtered_df = filtered_df[filtered_df['title'].isin(st.session_state.favorites)]
+
     if selected_title != "指定なし":
         filtered_df = filtered_df[filtered_df['title'] == selected_title]
     elif search_query:
@@ -61,9 +83,25 @@ def main():
         cols = st.columns(2)
         for idx, (i, row) in enumerate(filtered_df.iterrows()):
             with cols[idx % 2]:
-                with st.expander(f"📖 {row['title']}", expanded=(len(filtered_df) == 1)):
-                    
-                    # --- 画像表示（案1: すべての画像を表示） ---
+                title = row['title']
+                is_fav = title in st.session_state.favorites
+                
+                # タイトルとお気に入りボタンを横並びに
+                header_col1, header_col2 = st.columns([0.8, 0.2])
+                with header_col1:
+                    expander_label = f"📖 {title}"
+                with header_col2:
+                    # お気に入りボタン
+                    if st.button("⭐" if is_fav else "☆", key=f"fav_{i}"):
+                        if is_fav:
+                            st.session_state.favorites.remove(title)
+                        else:
+                            st.session_state.favorites.append(title)
+                        save_favorites(st.session_state.favorites)
+                        st.rerun()
+
+                with st.expander(expander_label, expanded=(len(filtered_df) == 1)):
+                    # 画像表示
                     if pd.notna(row['image_url']):
                         all_images = str(row['image_url']).split('|')
                         for img_url in all_images:
@@ -71,35 +109,29 @@ def main():
                             if url:
                                 st.image(url, use_container_width=True)
                     
-                    # --- 背景 ---
                     st.subheader("💡 背景")
                     st.write(row['background'])
                     
-                    # --- 材料のリスト化 ---
+                    # 材料
                     st.subheader("🛒 材料")
                     if pd.notna(row['ingredients']):
-                        ing_raw = row['ingredients']
-                        # 改行、または数字以外に挟まれたスラッシュで分割
-                        ing_list = re.split(r'\n|(?<!\d)/(?!\d)| / |/ ', ing_raw)
+                        ing_list = re.split(r'\n|(?<!\d)/(?!\d)| / |/ ', row['ingredients'])
                         for item in ing_list:
-                            clean_item = item.strip()
-                            if clean_item:
-                                st.markdown(f"- {clean_item}")
+                            if item.strip():
+                                st.markdown(f"- {item.strip()}")
                     
-                    # --- 作り方のリスト化 ---
+                    # 作り方
                     st.subheader("👨‍🍳 作り方")
                     if pd.notna(row['instructions']):
-                        # リスト内包表記で空行を除去しつつ分割
                         steps = [s.strip() for s in str(row['instructions']).split('。') if s.strip()]
                         for j, step in enumerate(steps, 1):
                             st.write(f"**{j}.** {step}。")
                     
-                    # --- コツ・ポイント ---
+                    # コツ
                     st.subheader("✨ コツ・ポイント")
                     if pd.notna(row['tips']):
                         st.warning(row['tips'])
                     
-                    # 元記事リンク
                     if pd.notna(row['permalink']):
                         st.markdown(f"[🔗 元の記事を見る]({row['permalink']})")
 
