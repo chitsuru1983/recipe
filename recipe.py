@@ -49,7 +49,7 @@ def load_data():
         return None
     return pd.read_csv("master_recipe_data.csv")
 
-# --- 季節判定とピックアップロジック ---
+# --- 季節判定 ---
 def get_season_keywords():
     month = datetime.now().month
     if 3 <= month <= 5:
@@ -62,7 +62,6 @@ def get_season_keywords():
         return "冬", ["冬", "白菜", "大根", "ブロッコリー", "ほうれん草", "カブ"]
 
 def main():
-    # --- タイトルとロゴ ---
     col_logo, col_title = st.columns([1, 8])
     with col_logo:
         if os.path.exists(LOGO_PATH): st.image(LOGO_PATH, use_container_width=True)
@@ -74,30 +73,23 @@ def main():
     if "favorites" not in st.session_state:
         st.session_state.favorites = load_favorites()
 
-    # --- ピックアップレシピ機能 ---
+    # --- ピックアップレシピ ---
     season_name, keywords = get_season_keywords()
-    
     if "pickup_recipe" not in st.session_state:
         pattern = "|".join(keywords)
         seasonal_df = df[
             df['title'].str.contains(pattern, na=False) | 
             df['background'].str.contains(pattern, na=False)
         ]
-        
-        if not seasonal_df.empty:
-            st.session_state.pickup_recipe = seasonal_df.sample(1).iloc[0]
-        else:
-            st.session_state.pickup_recipe = df.sample(1).iloc[0]
+        st.session_state.pickup_recipe = seasonal_df.sample(1).iloc[0] if not seasonal_df.empty else df.sample(1).iloc[0]
 
     with st.container():
         st.success(f"✨ 今月（{datetime.now().month}月）のおすすめレシピ")
         p_col1, p_col2 = st.columns([0.4, 0.6])
         pickup = st.session_state.pickup_recipe
-        
         with p_col1:
             if pd.notna(pickup['image_url']):
-                first_img = str(pickup['image_url']).split('|')[0]
-                st.image(first_img, use_container_width=True)
+                st.image(str(pickup['image_url']).split('|')[0], use_container_width=True)
         with p_col2:
             st.subheader(f"📖 {pickup['title']}")
             st.write(f"**季節のひとこと:** {pickup['background'][:100]}...")
@@ -112,28 +104,18 @@ def main():
     # --- サイドバー ---
     with st.sidebar:
         st.subheader("🔗 クイックリンク")
-        st.markdown("""
-        - 📺 [動画レッスンを見る](https://osakafoodstyle.stores.jp/)
-        - 📢 [最新ニュース・お知らせ](https://www.osakafoodstyle.com/news/)
-        - 📸 [Instagram (最新投稿)](https://www.instagram.com/osakafoodstyle/)
-        """)
+        st.markdown("- 📺 [動画レッスン](https://osakafoodstyle.stores.jp/)\n- 📢 [最新ニュース](https://www.osakafoodstyle.com/news/)\n- 📸 [Instagram](https://www.instagram.com/osakafoodstyle/)")
         st.divider()
         st.header("検索フィルタ")
         show_only_favs = st.checkbox("⭐ お気に入りだけ表示")
-        st.divider()
-        
-        default_search = st.session_state.get("search_query_direct", "")
-        search_query = st.text_input("検索キーワード", value=default_search)
-        
+        search_query = st.text_input("検索キーワード", value=st.session_state.get("search_query_direct", ""))
         search_target = st.radio("検索対象", ["すべて", "材料のみ"], index=0)
-        st.divider()
-        selected_title = st.selectbox("タイトルから直接選ぶ", ["指定なし"] + df['title'].tolist())
-        
+        selected_title = st.selectbox("タイトルから選ぶ", ["指定なし"] + df['title'].tolist())
         if st.button("検索をリセット"):
             st.session_state.search_query_direct = ""
             st.rerun()
 
-    # --- 絞り込みロジック ---
+    # --- 絞り込み ---
     filtered_df = df.copy()
     if show_only_favs:
         filtered_df = filtered_df[filtered_df['title'].isin(st.session_state.favorites)]
@@ -172,21 +154,28 @@ def main():
                     st.subheader("💡 背景")
                     st.write(row['background'])
                     
-                    # --- 材料表示（修正箇所：・を削除） ---
                     st.subheader("🛒 材料")
                     ingredients_map = {}
                     if pd.notna(row['ingredients']):
-                        # 分割後にそのまま出力
                         ing_list = re.split(r'\n|(?<!\d)/(?!\d)| / |/ ', str(row['ingredients']))
                         for item in ing_list:
                             item = item.strip()
                             if not item: continue
-                            # 箇条書き記号を入れず、そのまま表示
-                            st.write(item) 
+                            st.write(item)
                             
-                            # a(...) などの解析ロジックは維持
-                            match = re.match(r'^([a-z])\s*\((.+)\)', item)
-                            if match: ingredients_map[match.group(1)] = match.group(2)
+                            # 【修正】大文字・小文字・全角英字に対応し、「A:」や「A：」形式も拾えるように
+                            match = re.match(r'^([a-zA-Zａ-ｚＡ-Ｚ])\s*[:：]\s*(.+)', item)
+                            if not match:
+                                # 従来の a(中身) 形式も一応残しておく
+                                match = re.match(r'^([a-zA-Zａ-ｚＡ-Ｚ])\s*[(（](.+)[）)]', item)
+                            
+                            if match:
+                                key = match.group(1).upper() # 内部的には大文字で統一して保持
+                                content = match.group(2)
+                                if key in ingredients_map:
+                                    ingredients_map[key] += f"、{content}"
+                                else:
+                                    ingredients_map[key] = content
 
                     st.subheader("👨‍🍳 作り方")
                     if pd.notna(row['instructions']):
@@ -197,11 +186,14 @@ def main():
                             if step.startswith("※"): st.caption(step)
                             else:
                                 st.write(f"**{step_num}.** {step}。")
+                                # 【修正】作り方の文章中の A や B に反応して詳細を表示
                                 for key in ingredients_map:
-                                    if re.search(rf'(?<![a-zA-Z]){key}(?![a-zA-Z])', step):
+                                    # 前後に文字がない状態の英字（大文字小文字問わず）を検索
+                                    if re.search(rf'(?<![a-zA-Zａ-ｚＡ-Ｚ]){key}(?![a-zA-Zａ-ｚＡ-Ｚ])', step, re.IGNORECASE):
                                         with st.expander(f"🔍 {key}の中身を確認"):
                                             st.write(ingredients_map[key])
                                 step_num += 1
+                    
                     st.subheader("✨ コツ・ポイント")
                     if pd.notna(row['tips']): st.warning(row['tips'])
                     if pd.notna(row['permalink']): st.markdown(f"[🔗 元の記事を見る]({row['permalink']})")
