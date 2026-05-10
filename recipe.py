@@ -25,6 +25,7 @@ def load_data():
     if not pd.io.common.file_exists("master_recipe_data.csv"):
         st.error("master_recipe_data.csv が見つかりません。")
         return None
+    # CSV読み込み
     df = pd.read_csv("master_recipe_data.csv")
     return df
 
@@ -62,20 +63,24 @@ def main():
             with cols[idx % 2]:
                 with st.expander(f"📖 {row['title']}", expanded=(len(filtered_df) == 1)):
                     
-                    # --- 画像表示（複数URL対応版） ---
+                    # --- 画像表示（案1: すべての画像を表示） ---
                     if pd.notna(row['image_url']):
-                        # | で区切られたURLの1枚目を抽出
-                        img_url = str(row['image_url']).split('|')[0]
-                        st.image(img_url, use_container_width=True)
+                        # | で区切られたすべてのURLをリスト化
+                        all_images = str(row['image_url']).split('|')
+                        for img_url in all_images:
+                            url = img_url.strip()
+                            if url:
+                                st.image(url, use_container_width=True)
                     
                     # --- 背景 ---
                     st.subheader("💡 背景")
                     st.write(row['background'])
                     
-                    # --- 材料のリスト化 ---
+                    # --- 材料のリスト化（1/2を壊さない設定） ---
                     st.subheader("🛒 材料")
                     if pd.notna(row['ingredients']):
                         ing_raw = row['ingredients']
+                        # 改行または数字以外のスラッシュで分割
                         ing_list = re.split(r'\n|(?<!\d)/(?!\d)| / |/ ', ing_raw)
                         for item in ing_list:
                             clean_item = item.strip()
@@ -85,18 +90,4 @@ def main():
                     # --- 作り方のリスト化 ---
                     st.subheader("👨‍🍳 作り方")
                     if pd.notna(row['instructions']):
-                        steps = [s.strip() for s in row['instructions'].split('。') if s.strip()]
-                        for j, step in enumerate(steps, 1):
-                            st.write(f"**{j}.** {step}。")
-                    
-                    # --- コツ・ポイント ---
-                    st.subheader("✨ コツ・ポイント")
-                    if pd.notna(row['tips']):
-                        st.warning(row['tips'])
-                    
-                    if pd.notna(row['permalink']):
-                        st.markdown(f"[🔗 元の記事を見る]({row['permalink']})")
-
-if __name__ == "__main__":
-    if check_password():
-        main()
+                        # 「。」で分割してステップ
