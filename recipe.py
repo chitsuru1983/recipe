@@ -54,13 +54,19 @@ def get_season_keywords():
         return "冬", ["冬", "白菜", "大根", "ブロッコリー", "ほうれん草", "カブ"]
 
 def main():
-    # ヘッダーエリア
+    # --- ヘッダーエリア ---
     col_logo, col_title = st.columns([1, 8])
     with col_logo:
         if os.path.exists(LOGO_PATH): st.image(LOGO_PATH, use_container_width=True)
     with col_title: 
         st.title("過去レシピ・アーカイブ検索")
-    
+
+    # --- クイックリンク（上部配置） ---
+    link_col1, link_col2, link_col3 = st.columns(3)
+    with link_col1: st.info("📺 [動画レッスン](https://osakafoodstyle.stores.jp/)")
+    with link_col2: st.info("📢 [最新ニュース](https://www.osakafoodstyle.com/news/)")
+    with link_col3: st.info("📸 [Instagram](https://www.instagram.com/osakafoodstyle/)")
+
     df = load_data()
     if df is None: return
 
@@ -99,11 +105,10 @@ def main():
 
     st.divider()
 
-    # --- 検索セクション（サイドバーから移動） ---
+    # --- 検索セクション ---
     with st.expander("🔍 レシピを検索する", expanded=False):
         search_query = st.text_input("キーワード入力 (材料や料理名)", value=st.session_state.get("search_query_direct", ""))
         
-        # 細かいオプションはさらに分けてスッキリ
         opt_col1, opt_col2 = st.columns(2)
         with opt_col1:
             search_target = st.radio("検索対象", ["すべて", "材料のみ"], horizontal=True)
@@ -134,7 +139,6 @@ def main():
     if len(filtered_df) == 0:
         st.info("該当するレシピがありません。")
     else:
-        # スマホだと2列は狭い場合があるため、画面幅に応じて自動調整されるよう配慮
         cols = st.columns(2)
         for idx, (i, row) in enumerate(filtered_df.iterrows()):
             with cols[idx % 2]:
@@ -185,7 +189,7 @@ def main():
                             else:
                                 st.write(f"**{step_num}.** {step}。")
                                 for key in ingredients_map:
-                                    if re.search(rf'(?<![a-zA-Zａ-ｚＡ-Ｚ]){key}(?![a-zA-Zａ-ｚＡ-Ｚ])', step, re.IGNORECASE):
+                                    if re.search(rf'(?<![a-zA-Zａ-ｚＡ-ｚ]){key}(?![a-zA-Zａ-ｚＡ-ｚ])', step, re.IGNORECASE):
                                         with st.expander(f"🔍 {key}の中身を確認"):
                                             st.write(ingredients_map[key])
                                 step_num += 1
@@ -193,13 +197,6 @@ def main():
                     st.subheader("✨ コツ・ポイント")
                     if pd.notna(row['tips']): st.warning(row['tips'])
                     if pd.notna(row['permalink']): st.markdown(f"[🔗 元の記事を見る]({row['permalink']})")
-
-    # --- フッター（クイックリンク） ---
-    st.divider()
-    f_col1, f_col2, f_col3 = st.columns(3)
-    with f_col1: st.markdown("📺 [動画レッスン](https://osakafoodstyle.stores.jp/)")
-    with f_col2: st.markdown("📢 [最新ニュース](https://www.osakafoodstyle.com/news/)")
-    with f_col3: st.markdown("📸 [Instagram](https://www.instagram.com/osakafoodstyle/)")
 
 if __name__ == "__main__":
     main()
