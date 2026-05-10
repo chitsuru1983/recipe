@@ -11,7 +11,10 @@ FAV_FILE = "favorites.csv"
 
 def load_favorites():
     if os.path.exists(FAV_FILE):
-        return pd.read_csv(FAV_FILE)['title'].tolist()
+        try:
+            return pd.read_csv(FAV_FILE)['title'].tolist()
+        except:
+            return []
     return []
 
 def save_favorites(fav_list):
@@ -38,7 +41,9 @@ def load_data():
     return pd.read_csv("master_recipe_data.csv")
 
 def main():
+    # --- 冒頭にニュースリンクを表示 ---
     st.title("📚 過去レシピ・アーカイブ検索")
+    
     df = load_data()
     if df is None: return
 
@@ -47,6 +52,10 @@ def main():
 
     # --- サイドバー ---
     with st.sidebar:
+        # ニュースサイトへのリンクを最上部に配置
+        st.info("📢 [最新のニュース・お知らせを見る](https://www.osakafoodstyle.com/news/)")
+        st.divider()
+        
         st.header("検索フィルタ")
         show_only_favs = st.checkbox("⭐ お気に入りだけ表示")
         st.divider()
@@ -55,16 +64,16 @@ def main():
         st.divider()
         selected_title = st.selectbox("タイトルから直接選ぶ", ["指定なし"] + df['title'].tolist())
 
-    # --- 絞り込み ---
+    # --- 絞り込みロジック ---
     filtered_df = df.copy()
     if show_only_favs:
         filtered_df = filtered_df[filtered_df['title'].isin(st.session_state.favorites)]
     if search_query:
-        target_col = 'ingredients' if search_target == "材料のみ" else 'title' # 簡易化
-        if search_target == "すべて":
-            mask = filtered_df.apply(lambda r: r.astype(str).str.contains(search_query, case=False).any(), axis=1)
-        else:
+        if search_target == "材料のみ":
             mask = filtered_df['ingredients'].str.contains(search_query, na=False, case=False)
+        else:
+            # 全文検索
+            mask = filtered_df.apply(lambda r: r.astype(str).str.contains(search_query, case=False).any(), axis=1)
         filtered_df = filtered_df[mask]
     if selected_title != "指定なし":
         filtered_df = filtered_df[filtered_df['title'] == selected_title]
@@ -89,7 +98,7 @@ def main():
                         save_favorites(st.session_state.favorites); st.rerun()
 
                 with st.expander(expander_label, expanded=(len(filtered_df) == 1)):
-                    # 画像
+                    # 画像表示
                     if pd.notna(row['image_url']):
                         for url in str(row['image_url']).split('|'):
                             if url.strip(): st.image(url.strip(), use_container_width=True)
@@ -99,7 +108,7 @@ def main():
                     
                     # --- 材料解析（a, bの中身を抽出） ---
                     st.subheader("🛒 材料")
-                    ingredients_map = {} # aやbの中身を保持
+                    ingredients_map = {}
                     if pd.notna(row['ingredients']):
                         ing_raw = str(row['ingredients'])
                         ing_list = re.split(r'\n|(?<!\d)/(?!\d)| / |/ ', ing_raw)
@@ -107,27 +116,25 @@ def main():
                             item = item.strip()
                             if not item: continue
                             st.markdown(f"- {item}")
-                            # a(...) や b(...) の形式から中身を抽出
-                            match = re.match(r'^([a-z])\((.+)\)', item)
+                            match = re.match(r'^([a-z])\s*\((.+)\)', item)
                             if match:
                                 ingredients_map[match.group(1)] = match.group(2)
 
-                    # --- 作り方（※の番号除外 ＋ a/bの自動補完） ---
+                    # --- 作り方（※除外・a/b補完） ---
                     st.subheader("👨‍🍳 作り方")
                     if pd.notna(row['instructions']):
-                        steps = [s.strip() for s in str(row['instructions']).split('。') if s.strip()]
+                        raw_steps = re.split(r'。|\n', str(row['instructions']))
+                        steps = [s.strip() for s in raw_steps if s.strip()]
+                        
                         step_num = 1
                         for step in steps:
-                            # a, b などの記号を中身に置き換え
+                            # 記号の置換
                             for key, content in ingredients_map.items():
-                                # 単独の「a」や「aを」などにマッチさせる
-                                step = re.sub(rf'\b{key}\b(?![ぁ-ん])', f"**{key}({content})**", step)
+                                step = re.sub(rf'(?<![a-zA-Z]){key}(?![a-zA-Z])', f"**{key}({content})**", step)
                             
                             if step.startswith("※"):
-                                # ※で始まる場合は番号なし、少し薄い色やイタリック等で表示
-                                st.caption(f"{step}。")
+                                st.caption(f"{step}")
                             else:
-                                # 通常のステップ
                                 st.write(f"**{step_num}.** {step}。")
                                 step_num += 1
                     
