@@ -19,6 +19,20 @@ st.set_page_config(
     layout="wide"
 )
 
+# --- カスタム CSS (スマホでのロゴ縮小用) ---
+# この CSS を追加することで、画面幅が 640px 以下のときにロゴの親要素に 
+# 最大幅 (max-width) を設定し、ロゴの表示サイズを制限します。
+mobile_responsive_css = """
+<style>
+@media (max-width: 640px) {
+    [data-testid="stImage"] {
+        max-width: 100px !important;  /* スマホでのロゴの最大幅 */
+    }
+}
+</style>
+"""
+st.markdown(mobile_responsive_css, unsafe_allow_html=True)
+
 # --- データ読み込み関数の定義 ---
 @st.cache_data
 def load_data():
@@ -55,11 +69,13 @@ def get_season_keywords():
 
 def main():
     # --- ヘッダーエリア ---
-    col_logo, col_title = st.columns([1, 8])
+    # col_logo:col_title の比率を調整し、PC でもロゴが大きくなりすぎないようにしました。
+    # スマホでは自動的にカラムが縦に並びますが、上の CSS が効くようになります。
+    col_logo, col_title = st.columns([1, 10]) 
     with col_logo:
         if os.path.exists(LOGO_PATH): st.image(LOGO_PATH, use_container_width=True)
     with col_title: 
-        st.title("やさい料理研究家　大畑ちつるのレシピ集")
+        st.title("過去レシピ・アーカイブ検索")
 
     # --- クイックリンク（上部配置） ---
     link_col1, link_col2, link_col3 = st.columns(3)
