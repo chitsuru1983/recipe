@@ -14,7 +14,7 @@ else:
     icon_image = "🥦"
 
 st.set_page_config(
-    page_title="大畑ちつる やさいレシピ図鑑", 
+    page_title="やさいレシピ図鑑", 
     page_icon=icon_image,
     layout="wide"
 )
@@ -77,9 +77,7 @@ def main():
     # --- ピックアップレシピ機能 ---
     season_name, keywords = get_season_keywords()
     
-    # ピックアップの選定（まだ選ばれていない場合のみ実行）
     if "pickup_recipe" not in st.session_state:
-        # 現在の季節キーワードが含まれるレシピを抽出
         pattern = "|".join(keywords)
         seasonal_df = df[
             df['title'].str.contains(pattern, na=False) | 
@@ -89,10 +87,8 @@ def main():
         if not seasonal_df.empty:
             st.session_state.pickup_recipe = seasonal_df.sample(1).iloc[0]
         else:
-            # 該当がなければ全データからランダム
             st.session_state.pickup_recipe = df.sample(1).iloc[0]
 
-    # ピックアップの表示（目立つように配置）
     with st.container():
         st.success(f"✨ 今月（{datetime.now().month}月）のおすすめレシピ")
         p_col1, p_col2 = st.columns([0.4, 0.6])
@@ -106,7 +102,6 @@ def main():
             st.subheader(f"📖 {pickup['title']}")
             st.write(f"**季節のひとこと:** {pickup['background'][:100]}...")
             if st.button("このレシピを詳しく見る"):
-                # 検索窓にタイトルを入れることで、下の検索結果にこれだけを表示させる
                 st.session_state.search_query_direct = pickup['title']
             if st.button("他のレシピを提案して"):
                 del st.session_state.pickup_recipe
@@ -127,7 +122,6 @@ def main():
         show_only_favs = st.checkbox("⭐ お気に入りだけ表示")
         st.divider()
         
-        # ピックアップからの遷移用
         default_search = st.session_state.get("search_query_direct", "")
         search_query = st.text_input("検索キーワード", value=default_search)
         
@@ -145,7 +139,7 @@ def main():
         filtered_df = filtered_df[filtered_df['title'].isin(st.session_state.favorites)]
     if search_query:
         if search_target == "材料のみ":
-            mask = filtered_df['ingredients'].str.contains(search_query, na=False, case=False)
+            mask = filtered_df['ingredients'].astype(str).str.contains(search_query, na=False, case=False)
         else:
             mask = filtered_df.apply(lambda r: r.astype(str).str.contains(search_query, case=False).any(), axis=1)
         filtered_df = filtered_df[mask]
@@ -177,14 +171,20 @@ def main():
                             if url.strip(): st.image(url.strip(), use_container_width=True)
                     st.subheader("💡 背景")
                     st.write(row['background'])
+                    
+                    # --- 材料表示（修正箇所：・を削除） ---
                     st.subheader("🛒 材料")
                     ingredients_map = {}
                     if pd.notna(row['ingredients']):
+                        # 分割後にそのまま出力
                         ing_list = re.split(r'\n|(?<!\d)/(?!\d)| / |/ ', str(row['ingredients']))
                         for item in ing_list:
                             item = item.strip()
                             if not item: continue
-                            st.markdown(f"- {item}")
+                            # 箇条書き記号を入れず、そのまま表示
+                            st.write(item) 
+                            
+                            # a(...) などの解析ロジックは維持
                             match = re.match(r'^([a-z])\s*\((.+)\)', item)
                             if match: ingredients_map[match.group(1)] = match.group(2)
 
