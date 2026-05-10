@@ -31,23 +31,7 @@ def load_favorites():
 def save_favorites(fav_list):
     pd.DataFrame(fav_list, columns=['title']).to_csv(FAV_FILE, index=False)
 
-# --- 認証機能 ---
-def check_password():
-    if st.session_state.get("password_correct", False): return True
-    st.title("🔐 認証が必要です")
-    password = st.text_input("パスワードを入力してください", type="password")
-    if st.button("ログイン"):
-        if password == "20250505": 
-            st.session_state["password_correct"] = True
-            st.rerun()
-        else: st.error("パスワードが違います")
-    return False
 
-def load_data():
-    if not os.path.exists("master_recipe_data.csv"):
-        st.error("master_recipe_data.csv が見つかりません。")
-        return None
-    return pd.read_csv("master_recipe_data.csv")
 
 # --- 季節判定 ---
 def get_season_keywords():
