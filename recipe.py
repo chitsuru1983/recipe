@@ -65,7 +65,6 @@ def main():
                     
                     # --- 画像表示（案1: すべての画像を表示） ---
                     if pd.notna(row['image_url']):
-                        # | で区切られたすべてのURLをリスト化
                         all_images = str(row['image_url']).split('|')
                         for img_url in all_images:
                             url = img_url.strip()
@@ -76,11 +75,11 @@ def main():
                     st.subheader("💡 背景")
                     st.write(row['background'])
                     
-                    # --- 材料のリスト化（1/2を壊さない設定） ---
+                    # --- 材料のリスト化 ---
                     st.subheader("🛒 材料")
                     if pd.notna(row['ingredients']):
                         ing_raw = row['ingredients']
-                        # 改行または数字以外のスラッシュで分割
+                        # 改行、または数字以外に挟まれたスラッシュで分割
                         ing_list = re.split(r'\n|(?<!\d)/(?!\d)| / |/ ', ing_raw)
                         for item in ing_list:
                             clean_item = item.strip()
@@ -90,4 +89,20 @@ def main():
                     # --- 作り方のリスト化 ---
                     st.subheader("👨‍🍳 作り方")
                     if pd.notna(row['instructions']):
-                        # 「。」で分割してステップ
+                        # リスト内包表記で空行を除去しつつ分割
+                        steps = [s.strip() for s in str(row['instructions']).split('。') if s.strip()]
+                        for j, step in enumerate(steps, 1):
+                            st.write(f"**{j}.** {step}。")
+                    
+                    # --- コツ・ポイント ---
+                    st.subheader("✨ コツ・ポイント")
+                    if pd.notna(row['tips']):
+                        st.warning(row['tips'])
+                    
+                    # 元記事リンク
+                    if pd.notna(row['permalink']):
+                        st.markdown(f"[🔗 元の記事を見る]({row['permalink']})")
+
+if __name__ == "__main__":
+    if check_password():
+        main()
