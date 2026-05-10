@@ -22,6 +22,7 @@ st.set_page_config(
 # --- データ読み込み関数の定義 (追加) ---
 @st.cache_data
 def load_data():
+    # CSVファイル名は実際のファイル名に合わせて変更してください
     csv_file = "master_recipe_data.csv"
     if os.path.exists(csv_file):
         return pd.read_csv(csv_file)
@@ -69,7 +70,6 @@ def main():
     season_name, keywords = get_season_keywords()
     if "pickup_recipe" not in st.session_state:
         pattern = "|".join(keywords)
-        # タイトルか背景に季節キーワードが含まれるものを抽出
         seasonal_df = df[
             df['title'].str.contains(pattern, na=False) | 
             df['background'].str.contains(pattern, na=False)
@@ -88,7 +88,7 @@ def main():
             st.write(f"**季節のひとこと:** {pickup['background'][:100]}...")
             if st.button("このレシピを詳しく見る"):
                 st.session_state.search_query_direct = pickup['title']
-                st.rerun() # 直接検索へ飛ばすために再描画
+                st.rerun()
             if st.button("他のレシピを提案して"):
                 del st.session_state.pickup_recipe
                 st.rerun()
@@ -104,39 +104,4 @@ def main():
         show_only_favs = st.checkbox("⭐ お気に入りだけ表示")
         search_query = st.text_input("検索キーワード", value=st.session_state.get("search_query_direct", ""))
         search_target = st.radio("検索対象", ["すべて", "材料のみ"], index=0)
-        selected_title = st.selectbox("タイトルから選ぶ", ["指定なし"] + df['title'].tolist())
-        if st.button("検索をリセット"):
-            st.session_state.search_query_direct = ""
-            st.rerun()
-
-    # --- 絞り込み ---
-    filtered_df = df.copy()
-    if show_only_favs:
-        filtered_df = filtered_df[filtered_df['title'].isin(st.session_state.favorites)]
-    if search_query:
-        if search_target == "材料のみ":
-            mask = filtered_df['ingredients'].astype(str).str.contains(search_query, na=False, case=False)
-        else:
-            mask = filtered_df.apply(lambda r: r.astype(str).str.contains(search_query, case=False).any(), axis=1)
-        filtered_df = filtered_df[mask]
-    if selected_title != "指定なし":
-        filtered_df = filtered_df[filtered_df['title'] == selected_title]
-
-    st.write(f"検索結果: {len(filtered_df)} 件")
-
-    # --- レシピ表示 ---
-    if len(filtered_df) == 0:
-        st.info("該当するレシピがありません。")
-    else:
-        cols = st.columns(2)
-        for idx, (i, row) in enumerate(filtered_df.iterrows()):
-            with cols[idx % 2]:
-                title = row['title']
-                is_fav = title in st.session_state.favorites
-                h_col1, h_col2 = st.columns([0.85, 0.15])
-                with h_col1: expander_label = f"📖 {title}"
-                with h_col2:
-                    if st.button("⭐" if is_fav else "☆", key=f"fav_{i}"):
-                        if is_fav: st.session_state.favorites.remove(title)
-                        else: st.session_state.favorites.append(title)
-                        save
+        selected_title = st.selectbox("タイトルから選ぶ
