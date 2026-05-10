@@ -19,6 +19,16 @@ st.set_page_config(
     layout="wide"
 )
 
+# --- データ読み込み関数の定義 (追加) ---
+@st.cache_data
+def load_data():
+    csv_file = "master_recipe_data.csv"
+    if os.path.exists(csv_file):
+        return pd.read_csv(csv_file)
+    else:
+        st.error(f"データファイル {csv_file} が見つかりません。")
+        return None
+
 # --- お気に入りデータの管理 ---
 FAV_FILE = "favorites.csv"
 def load_favorites():
@@ -30,8 +40,6 @@ def load_favorites():
 
 def save_favorites(fav_list):
     pd.DataFrame(fav_list, columns=['title']).to_csv(FAV_FILE, index=False)
-
-
 
 # --- 季節判定 ---
 def get_season_keywords():
@@ -61,6 +69,7 @@ def main():
     season_name, keywords = get_season_keywords()
     if "pickup_recipe" not in st.session_state:
         pattern = "|".join(keywords)
+        # タイトルか背景に季節キーワードが含まれるものを抽出
         seasonal_df = df[
             df['title'].str.contains(pattern, na=False) | 
             df['background'].str.contains(pattern, na=False)
@@ -79,6 +88,7 @@ def main():
             st.write(f"**季節のひとこと:** {pickup['background'][:100]}...")
             if st.button("このレシピを詳しく見る"):
                 st.session_state.search_query_direct = pickup['title']
+                st.rerun() # 直接検索へ飛ばすために再描画
             if st.button("他のレシピを提案して"):
                 del st.session_state.pickup_recipe
                 st.rerun()
@@ -129,57 +139,4 @@ def main():
                     if st.button("⭐" if is_fav else "☆", key=f"fav_{i}"):
                         if is_fav: st.session_state.favorites.remove(title)
                         else: st.session_state.favorites.append(title)
-                        save_favorites(st.session_state.favorites); st.rerun()
-
-                with st.expander(expander_label, expanded=(len(filtered_df) == 1)):
-                    if pd.notna(row['image_url']):
-                        for url in str(row['image_url']).split('|'):
-                            if url.strip(): st.image(url.strip(), use_container_width=True)
-                    st.subheader("💡 背景")
-                    st.write(row['background'])
-                    
-                    st.subheader("🛒 材料")
-                    ingredients_map = {}
-                    if pd.notna(row['ingredients']):
-                        ing_list = re.split(r'\n|(?<!\d)/(?!\d)| / |/ ', str(row['ingredients']))
-                        for item in ing_list:
-                            item = item.strip()
-                            if not item: continue
-                            st.write(item)
-                            
-                            # 【修正】大文字・小文字・全角英字に対応し、「A:」や「A：」形式も拾えるように
-                            match = re.match(r'^([a-zA-Zａ-ｚＡ-Ｚ])\s*[:：]\s*(.+)', item)
-                            if not match:
-                                # 従来の a(中身) 形式も一応残しておく
-                                match = re.match(r'^([a-zA-Zａ-ｚＡ-Ｚ])\s*[(（](.+)[）)]', item)
-                            
-                            if match:
-                                key = match.group(1).upper() # 内部的には大文字で統一して保持
-                                content = match.group(2)
-                                if key in ingredients_map:
-                                    ingredients_map[key] += f"、{content}"
-                                else:
-                                    ingredients_map[key] = content
-
-                    st.subheader("👨‍🍳 作り方")
-                    if pd.notna(row['instructions']):
-                        raw_steps = re.split(r'。|\n', str(row['instructions']))
-                        steps = [s.strip() for s in raw_steps if s.strip()]
-                        step_num = 1
-                        for step in steps:
-                            if step.startswith("※"): st.caption(step)
-                            else:
-                                st.write(f"**{step_num}.** {step}。")
-                                # 【修正】作り方の文章中の A や B に反応して詳細を表示
-                                for key in ingredients_map:
-                                    # 前後に文字がない状態の英字（大文字小文字問わず）を検索
-                                    if re.search(rf'(?<![a-zA-Zａ-ｚＡ-Ｚ]){key}(?![a-zA-Zａ-ｚＡ-Ｚ])', step, re.IGNORECASE):
-                                        with st.expander(f"🔍 {key}の中身を確認"):
-                                            st.write(ingredients_map[key])
-                                step_num += 1
-                    
-                    st.subheader("✨ コツ・ポイント")
-                    if pd.notna(row['tips']): st.warning(row['tips'])
-                    if pd.notna(row['permalink']): st.markdown(f"[🔗 元の記事を見る]({row['permalink']})")
-
-if __name__ == "__main__"
+                        save
