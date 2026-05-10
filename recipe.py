@@ -2,11 +2,23 @@ import streamlit as st
 import pandas as pd
 import re
 import os
+from PIL import Image  # 画像を読み込むためのライブラリを追加
 
 # --- ページ設定 ---
+# 1. ローカルのlogo.pngを開く
+LOGO_PATH = "logo.png"
+
+# アプリと同じ場所に logo.png があるか確認
+if os.path.exists(LOGO_PATH):
+    icon_image = Image.open(LOGO_PATH)
+else:
+    # 万が一logo.pngがない場合の予備（絵文字）
+    icon_image = "🥦"
+
+# 2. page_iconに画像のオブジェクトを指定
 st.set_page_config(
     page_title="やさいレシピ図鑑", 
-    page_icon="https://www.osakafoodstyle.com/wp/wp-content/uploads/2019/02/d247b1549c9d065bc7e2e04638f35fa8.jpg", 
+    page_icon=icon_image,   # ここを書き換え
     layout="wide"
 )
 
@@ -16,7 +28,6 @@ FAV_FILE = "favorites.csv"
 def load_favorites():
     if os.path.exists(FAV_FILE):
         try:
-            # タイトル列のみをリストで返す
             return pd.read_csv(FAV_FILE)['title'].tolist()
         except:
             return []
@@ -42,7 +53,8 @@ def check_password():
     return False
 
 def load_data():
-    if not pd.io.common.file_exists("master_recipe_data.csv"):
+    # master_recipe_data.csvの有無を確認
+    if not os.path.exists("master_recipe_data.csv"):
         st.error("master_recipe_data.csv が見つかりません。")
         return None
     return pd.read_csv("master_recipe_data.csv")
@@ -53,17 +65,22 @@ def main():
     df = load_data()
     if df is None: return
 
-    # セッション状態にお気に入りを保持
     if "favorites" not in st.session_state:
         st.session_state.favorites = load_favorites()
 
     # --- サイドバー ---
     with st.sidebar:
+        # サイドバーにもロゴを表示（お好みで。不要ならコメントアウトしてください）
+        if os.path.exists(LOGO_PATH):
+            # widthは適宜調整してください
+            st.image(LOGO_PATH, width=100)
+            st.divider()
+
         st.subheader("🔗 クイックリンク")
         st.markdown("""
         - 📺 [動画レッスンを見る](https://osakafoodstyle.stores.jp/)
         - 📢 [最新ニュース・お知らせ](https://www.osakafoodstyle.com/news/)
-        - 📸 [Instagram (最新の投稿)](https://www.instagram.com/osakafoodstyle/)
+        - 📸 [Instagram (最新投稿)](https://www.instagram.com/osakafoodstyle/)
         """)
         st.divider()
         
@@ -87,6 +104,8 @@ def main():
     # キーワード検索
     if search_query:
         if search_target == "材料のみ":
+            # 材料欄のみ対象
+            filtered_df['ingredients'] = filtered_df['ingredients'].astype(str) # 文字列に変換
             mask = filtered_df['ingredients'].str.contains(search_query, na=False, case=False)
         else:
             # 全文検索
@@ -101,7 +120,7 @@ def main():
 
     # --- レシピ表示エリア ---
     if len(filtered_df) == 0:
-        st.info("該当するレシピがありません。条件を変えてみてください。")
+        st.info("該当するレシピがありません。")
     else:
         cols = st.columns(2)
         for idx, (i, row) in enumerate(filtered_df.iterrows()):
@@ -109,7 +128,7 @@ def main():
                 title = row['title']
                 is_fav = title in st.session_state.favorites
                 
-                # ヘッダー部分（タイトルとお気に入りボタン）
+                # ヘッダー（タイトルとお気に入りボタン）
                 h_col1, h_col2 = st.columns([0.85, 0.15])
                 with h_col1:
                     expander_label = f"📖 {title}"
@@ -143,12 +162,11 @@ def main():
                             if not item: continue
                             st.markdown(f"- {item}")
                             
-                            # a(...) や b(...) の形式から中身を抽出
                             match = re.match(r'^([a-z])\s*\((.+)\)', item)
                             if match:
                                 ingredients_map[match.group(1)] = match.group(2)
 
-                    # --- 作り方（※除外・a/b詳細折りたたみ） ---
+                    # --- 作り方（※除外・折りたたみ式詳細） ---
                     st.subheader("👨‍🍳 作り方")
                     if pd.notna(row['instructions']):
                         raw_steps = re.split(r'。|\n', str(row['instructions']))
@@ -157,15 +175,12 @@ def main():
                         step_num = 1
                         for step in steps:
                             if step.startswith("※"):
-                                # 注釈は番号なしで表示
                                 st.caption(step)
                             else:
-                                # 通常のステップ
                                 st.write(f"**{step_num}.** {step}。")
                                 
-                                # 手順の中に a や b があれば、折りたたみで詳細を表示
+                                # a や b の詳細を折りたたんで表示
                                 for key in ingredients_map:
-                                    # 単独の英字として含まれているか判定
                                     if re.search(rf'(?<![a-zA-Z]){key}(?![a-zA-Z])', step):
                                         with st.expander(f"🔍 {key}の中身を確認"):
                                             st.write(ingredients_map[key])
@@ -176,7 +191,6 @@ def main():
                     if pd.notna(row['tips']):
                         st.warning(row['tips'])
                     
-                    # 元記事リンク
                     if pd.notna(row['permalink']):
                         st.markdown(f"[🔗 元の記事を見る]({row['permalink']})")
 
