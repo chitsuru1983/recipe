@@ -14,7 +14,7 @@ else:
     icon_image = "🥦"
 
 st.set_page_config(
-    page_title="やさいレシピ図鑑", 
+    page_title="季節の野菜のおばんざいレシピ", 
     page_icon=icon_image,
     layout="wide"
 )
