@@ -69,8 +69,35 @@ def main():
                     st.subheader("💡 背景")
                     st.write(row['background'])
                     
-                    # --- 材料のリスト化（1/2を壊さない設定） ---
+                    # --- 材料のリスト化 ---
                     st.subheader("🛒 材料")
                     if pd.notna(row['ingredients']):
-                        # 分割ルール:
-                        # 1.
+                        # 分割ルールを実行（改行、または数字以外に挟まれたスラッシュで分割）
+                        ing_raw = row['ingredients']
+                        ing_list = re.split(r'\n|(?<!\d)/(?!\d)| / |/ ', ing_raw)
+                        
+                        for item in ing_list:
+                            clean_item = item.strip()
+                            if clean_item:
+                                st.markdown(f"- {clean_item}")
+                    
+                    # --- 作り方のリスト化 ---
+                    st.subheader("👨‍🍳 作り方")
+                    if pd.notna(row['instructions']):
+                        # 「。」で分割してステップ番号をつける
+                        steps = [s.strip() for s in row['instructions'].split('。') if s.strip()]
+                        for j, step in enumerate(steps, 1):
+                            st.write(f"**{j}.** {step}。")
+                    
+                    # --- コツ・ポイント ---
+                    st.subheader("✨ コツ・ポイント")
+                    if pd.notna(row['tips']):
+                        st.warning(row['tips'])
+                    
+                    # 元記事リンク
+                    if pd.notna(row['permalink']):
+                        st.markdown(f"[🔗 元の記事を見る]({row['permalink']})")
+
+if __name__ == "__main__":
+    if check_password():
+        main()
