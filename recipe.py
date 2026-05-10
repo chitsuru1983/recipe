@@ -1,6 +1,24 @@
 import streamlit as st
 import pandas as pd
 
+# --- 2. 認証機能 ---
+def check_password():
+    if st.session_state.get("password_correct", False):
+        return True
+
+    st.title("🔐 認証が必要です")
+    password = st.text_input("password", type="password")
+    
+    if st.button("ログイン"):
+        if password == "20250505": 
+            st.session_state["password_correct"] = True
+            st.rerun()
+        else:
+            st.error("パスワードが違います")
+    return False
+
+
+
 # ページ設定
 st.set_page_config(page_title="Recipe Library", layout="wide")
 
