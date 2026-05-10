@@ -2,23 +2,20 @@ import streamlit as st
 import pandas as pd
 import re
 import os
-from PIL import Image  # 画像を読み込むためのライブラリを追加
+from PIL import Image
 
 # --- ページ設定 ---
-# 1. ローカルのlogo.pngを開く
 LOGO_PATH = "logo.png"
 
 # アプリと同じ場所に logo.png があるか確認
 if os.path.exists(LOGO_PATH):
     icon_image = Image.open(LOGO_PATH)
 else:
-    # 万が一logo.pngがない場合の予備（絵文字）
     icon_image = "🥦"
 
-# 2. page_iconに画像のオブジェクトを指定
 st.set_page_config(
     page_title="やさいレシピ図鑑", 
-    page_icon=icon_image,   # ここを書き換え
+    page_icon=icon_image,
     layout="wide"
 )
 
@@ -53,14 +50,21 @@ def check_password():
     return False
 
 def load_data():
-    # master_recipe_data.csvの有無を確認
     if not os.path.exists("master_recipe_data.csv"):
         st.error("master_recipe_data.csv が見つかりません。")
         return None
     return pd.read_csv("master_recipe_data.csv")
 
 def main():
-    st.title("📚 過去レシピ・アーカイブ検索")
+    # --- タイトルとロゴを横並びに配置 ---
+    # 比率はロゴの形状に合わせて [1, 6] や [0.5, 5] などで調整してください
+    col_logo, col_title = st.columns([1, 8])
+    with col_logo:
+        if os.path.exists(LOGO_PATH):
+            # ロゴ画像をタイトルの高さに合わせて表示
+            st.image(LOGO_PATH, use_container_width=True)
+    with col_title:
+        st.title("過去レシピ・アーカイブ検索")
     
     df = load_data()
     if df is None: return
@@ -70,12 +74,7 @@ def main():
 
     # --- サイドバー ---
     with st.sidebar:
-        # サイドバーにもロゴを表示（お好みで。不要ならコメントアウトしてください）
-        if os.path.exists(LOGO_PATH):
-            # widthは適宜調整してください
-            st.image(LOGO_PATH, width=100)
-            st.divider()
-
+        # サイドバー上部のリンク集
         st.subheader("🔗 クイックリンク")
         st.markdown("""
         - 📺 [動画レッスンを見る](https://osakafoodstyle.stores.jp/)
@@ -97,22 +96,16 @@ def main():
     # --- 絞り込みロジック ---
     filtered_df = df.copy()
     
-    # お気に入り絞り込み
     if show_only_favs:
         filtered_df = filtered_df[filtered_df['title'].isin(st.session_state.favorites)]
     
-    # キーワード検索
     if search_query:
         if search_target == "材料のみ":
-            # 材料欄のみ対象
-            filtered_df['ingredients'] = filtered_df['ingredients'].astype(str) # 文字列に変換
             mask = filtered_df['ingredients'].str.contains(search_query, na=False, case=False)
         else:
-            # 全文検索
             mask = filtered_df.apply(lambda r: r.astype(str).str.contains(search_query, case=False).any(), axis=1)
         filtered_df = filtered_df[mask]
     
-    # タイトル直接選択
     if selected_title != "指定なし":
         filtered_df = filtered_df[filtered_df['title'] == selected_title]
 
@@ -128,7 +121,6 @@ def main():
                 title = row['title']
                 is_fav = title in st.session_state.favorites
                 
-                # ヘッダー（タイトルとお気に入りボタン）
                 h_col1, h_col2 = st.columns([0.85, 0.15])
                 with h_col1:
                     expander_label = f"📖 {title}"
@@ -142,7 +134,6 @@ def main():
                         st.rerun()
 
                 with st.expander(expander_label, expanded=(len(filtered_df) == 1)):
-                    # 画像（複数対応）
                     if pd.notna(row['image_url']):
                         for url in str(row['image_url']).split('|'):
                             if url.strip():
@@ -166,7 +157,7 @@ def main():
                             if match:
                                 ingredients_map[match.group(1)] = match.group(2)
 
-                    # --- 作り方（※除外・折りたたみ式詳細） ---
+                    # --- 作り方（注釈除外・a/b詳細折りたたみ） ---
                     st.subheader("👨‍🍳 作り方")
                     if pd.notna(row['instructions']):
                         raw_steps = re.split(r'。|\n', str(row['instructions']))
@@ -186,7 +177,6 @@ def main():
                                             st.write(ingredients_map[key])
                                 step_num += 1
                     
-                    # --- コツ・ポイント ---
                     st.subheader("✨ コツ・ポイント")
                     if pd.notna(row['tips']):
                         st.warning(row['tips'])
